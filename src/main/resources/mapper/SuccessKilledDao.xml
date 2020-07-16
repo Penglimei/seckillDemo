@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.plm.dao.SuccessKilledDao">
+    <!-- 目的：为DAO接口方法提供sql语句配置 -->
+
+    <!--
+        添加秒杀成功明细
+            insert ignore into ===>联合主键的作用，当主键重复报错，证明这个用户已经秒杀过这个产品
+
+        状态标识:-1:无效 0:成功 1:已付款 2:已发货   默认是 -1
+     -->
+    <insert id="insertSuccessKilled">
+        insert ignore into success_killed(seckill_id, user_phone) VALUES (#{seckillId},#{userPhone});
+    </insert>
+
+
+    <!--
+        根据 seckillId查询秒杀成功的明细，以及所秒杀商品的信息
+
+            通过级联：告诉MyBatis将查询结果映射到SuccessKilled实体类的同时，
+            映射到SuccessKilled实体类的seckill属性并进行封装
+     -->
+    <select id="findByIdWithSeckill" resultType="com.plm.entity.SuccessKilled">
+        select sk.seckill_id,sk.user_phone,sk.create_time,sk.state,
+               s.seckill_id "seckill.seckill_id",
+               s.name "seckill.name",
+               s.number "seckill.number",
+               s.start_time "seckill.start_time",
+               s.end_time "seckill.end_time",
+               s.create_time "seckill.create_time"
+        from success_killed sk inner join seckill s on sk.seckill_id=s.seckill_id
+        where sk.seckill_id=#{seckillId} and sk.user_phone=#{userPhone};
+    </select>
+</mapper>
