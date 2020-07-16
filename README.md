@@ -78,4 +78,5 @@
 > > SpringMVC+Spring+MyBatis
 # Java高并发秒杀API之业务分析与Dao层
 ## 创建项目
-> 
+> 创建Maven项目和依赖
+> > ![IDEA中创建Maven项目](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/IDEA中创建Maven项目.png)
