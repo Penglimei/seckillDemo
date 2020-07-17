@@ -17,8 +17,8 @@
 > + 秒杀分析过程与优化思路
 ## 项目来源
 > [Java高并发秒杀API之业务分析与Dao层](https://www.imooc.com/view/587)  
-> [Java高并发秒杀API之Web层](https://www.imooc.com/view/630)  
 > [Java高并发秒杀API之Service层](https://www.imooc.com/view/631)  
+> [Java高并发秒杀API之Web层](https://www.imooc.com/view/630)  
 > [Java高并发秒杀API之高并发优化](https://www.imooc.com/view/632)  
 ## 相关技术
 > + MySQl  
@@ -565,7 +565,7 @@ public interface SuccessKilledDao {
          -->
         <setting name="useColumnLabel" value="true"/>
         <!-- 开启驼峰命名转换
-                table(create_time)==>Entity(createTime)
+                table(create_time)<==>Entity(createTime)
          -->
         <setting name="mapUnderscoreToCamelCase" value="true"/>
     </settings>
@@ -708,7 +708,7 @@ password=root
 </beans>
 ```
 ## Junit 单元测试Dao
-> SeckillDao.java的测试类  
+> /src/test/java/com/plm/dao/SeckillDaoTest.java  
 ```java
 package com.plm.dao;
 
@@ -763,7 +763,7 @@ public class SeckillDaoTest {
     }
 }
 ```
-> /src/test/java/com/plm/dao/SeckillDaoTest.java
+> /src/test/java/com/plm/dao/SuccessKilledDaoTest.java
 ```java
 package com.plm.dao;
 
@@ -799,6 +799,590 @@ public class SuccessKilledDaoTest {
         System.out.println(successKilled);
         System.out.println("=========");
         System.out.println(successKilled.getSeckill());
+    }
+}
+```
+
+# Java高并发秒杀API之Service层  
+## 自定义异常类 
+> exception/SeckillException.java   基础的异常类,秒杀相关业务异常  
+```java
+package com.plm.exception;
+
+/**
+ *  秒杀相关业务异常
+ */
+public class SeckillException extends RuntimeException {
+
+    public SeckillException(String message) {
+        super(message);
+    }
+
+    public SeckillException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+```
+
+> exception/RepeatKillException.java    重复秒杀异常  
+```java
+package com.plm.exception;
+
+
+/**
+ *  重复秒杀异常（运行期异常）
+ *      避免用户使用 软件进行恶意秒杀或者是无意点击多次秒杀
+ *
+ *  Mysql只支持运行期异常的回滚操作
+ */
+public class RepeatKillException extends SeckillException{
+
+    public RepeatKillException (String message){
+        super(message);
+    }
+
+    public RepeatKillException (String message,Throwable cause){
+        super(message,cause);
+    }
+}
+
+```
+
+> exception/SeckillCloseException.java  秒杀关闭异常，当秒杀结束时用户还要进行秒杀就会出现这个异常  
+```java
+package com.plm.exception;
+
+/**
+ *  秒杀关闭异常，当秒杀结束时用户还要进行秒杀就会出现这个异常
+ */
+public class SeckillCloseException extends SeckillException {
+
+    public SeckillCloseException(String message) {
+        super(message);
+    }
+
+    public SeckillCloseException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+```
+
+## 封装Web层和Service层之间传递的数据的自定义数据传输层类
+> dto/Exposer.java  暴露秒杀地址  
+```java
+package com.plm.dto;
+
+/**
+ *  dto:数据传输层
+ *
+ *  暴露秒杀地址
+ */
+public class Exposer {
+
+    // 是否开启接口
+    private boolean exposed;
+    // 一种加密措施
+    private String md5;
+    private long seckillId;
+    // 系统当前时间(毫秒)
+    private long now;
+    // 秒杀开启时间
+    private long start;
+    // 秒杀结束时间
+    private long end;
+
+    public Exposer(boolean exposed, String md5, long seckillId) {
+        this.exposed = exposed;
+        this.md5 = md5;
+        this.seckillId = seckillId;
+    }
+
+    public Exposer(boolean exposed, long seckillId, long now, long start, long end) {
+        this.exposed = exposed;
+        this.seckillId = seckillId;
+        this.now = now;
+        this.start = start;
+        this.end = end;
+    }
+
+    public Exposer(boolean exposed, long seckillId) {
+        this.exposed = exposed;
+        this.seckillId = seckillId;
+    }
+
+    public boolean isExposed() {
+        return exposed;
+    }
+
+    public void setExposed(boolean exposed) {
+        this.exposed = exposed;
+    }
+
+    public String getMd5() {
+        return md5;
+    }
+
+    public void setMd5(String md5) {
+        this.md5 = md5;
+    }
+
+    public long getSeckillId() {
+        return seckillId;
+    }
+
+    public void setSeckillId(long seckillId) {
+        this.seckillId = seckillId;
+    }
+
+    public long getNow() {
+        return now;
+    }
+
+    public void setNow(long now) {
+        this.now = now;
+    }
+
+    public long getStart() {
+        return start;
+    }
+
+    public void setStart(long start) {
+        this.start = start;
+    }
+
+    public long getEnd() {
+        return end;
+    }
+
+    public void setEnd(long end) {
+        this.end = end;
+    }
+
+    @Override
+    public String toString() {
+        return "Exposer{" +
+                "exposed=" + exposed +
+                ", md5='" + md5 + '\'' +
+                ", seckillId=" + seckillId +
+                ", now=" + now +
+                ", start=" + start +
+                ", end=" + end +
+                '}';
+    }
+}
+```  
+
+> > `秒杀地址暴露`
+> > > + 需要有专门一个方法实现秒杀地址输出，避免人为因素（使用软件恶意获取秒杀地址...）提前知道秒杀地址而出现漏洞。  
+> > > + 获取秒杀url时，如果不合法，则返回当前时间和秒杀项目的时间；如果合法，才返回md5加密后url，以避免url被提前获知。  
+> > > + 使用md5将url加密、校验，防止秒杀的url被篡改。  
+
+> dto/SeckillExecution.java     封装秒杀执行后的结果  
+```java
+package com.plm.dto;
+
+
+import com.plm.entity.SuccessKilled;
+import com.plm.enums.SeckillStatEnum;
+
+/**
+ *  封装秒杀执行后的结果
+ */
+public class SeckillExecution {
+
+    private long seckillId;
+    // 秒杀执行结果状态
+    private int state;
+    // 状态信息
+    private String stateInfo;
+    // 秒杀成功对象
+    private SuccessKilled successKilled;
+
+    // 秒杀成功
+    public SeckillExecution(long seckillId, SeckillStatEnum statEnum, SuccessKilled successKilled) {
+        this.seckillId = seckillId;
+        this.state = statEnum.getState();
+        this.stateInfo = statEnum.getStateInfo();
+        this.successKilled = successKilled;
+    }
+
+    // 秒杀失败
+    public SeckillExecution(long seckillId, SeckillStatEnum statEnum) {
+        this.seckillId = seckillId;
+        this.state = statEnum.getState();
+        this.stateInfo = statEnum.getStateInfo();
+    }
+
+    public long getSeckillId() {
+        return seckillId;
+    }
+
+    public void setSeckillId(long seckillId) {
+        this.seckillId = seckillId;
+    }
+
+    public int getState() {
+        return state;
+    }
+
+    public void setState(int state) {
+        this.state = state;
+    }
+
+    public String getStateInfo() {
+        return stateInfo;
+    }
+
+    public void setStateInfo(String stateInfo) {
+        this.stateInfo = stateInfo;
+    }
+
+    public SuccessKilled getSuccessKilled() {
+        return successKilled;
+    }
+
+    public void setSuccessKilled(SuccessKilled successKilled) {
+        this.successKilled = successKilled;
+    }
+}
+
+```
+
+> enums/SeckillStatEnum.java `用常量枚举类封装秒杀结果返回的state和stateInfo参数信息，方便重复利用，也易于维护`
+```java
+package com.plm.enums;
+/**
+ *  使用枚举表述常量数据字段
+ */
+public enum SeckillStatEnum {
+
+    SUCCESS(1,"秒杀成功"),
+    END(0,"秒杀结束"),
+    REPEAT_KILL(-1,"重复秒杀"),
+    INNER_ERROR(-2,"系统异常"),
+    DATA_REWRITE(-3,"数据篡改");
+
+    private int state;
+    private String stateInfo;
+
+    SeckillStatEnum(int state, String stateInfo) {
+        this.state = state;
+        this.stateInfo = stateInfo;
+    }
+
+    public int getState() {
+        return state;
+    }
+
+    public String getStateInfo() {
+        return stateInfo;
+    }
+
+    public static SeckillStatEnum stateOf(int index){
+        for (SeckillStatEnum statEnum : values()){
+            if(statEnum.getState() == index){
+                return statEnum;
+            }
+        }
+        return null;
+    }
+}
+
+```  
+> > `SeckillStatEnum statEnum; statEnum.getState();statEnum.getStateInfo();`
+
+## Service层接口设计
+> service/SeckillService.java   
+```java
+package com.plm.service;
+
+import com.plm.dto.Exposer;
+import com.plm.dto.SeckillExecution;
+import com.plm.entity.Seckill;
+import com.plm.exception.RepeatKillException;
+import com.plm.exception.SeckillCloseException;
+import com.plm.exception.SeckillException;
+
+import java.util.List;
+
+/**
+ *  业务接口
+ */
+public interface SeckillService {
+
+    /**
+     *  查询所有秒杀记录
+     * @return
+     */
+    List<Seckill> getSeckillList();
+
+    /**
+     *  查询单个秒杀记录
+     * @param seckillId
+     * @return
+     */
+    Seckill getById(long seckillId);
+
+    /**
+     *  秒杀开启时输出秒杀接口地址，
+     *  否则输出系统时间和秒杀时间
+     * @param seckillId
+     * @return
+     */
+    Exposer exportSeckillUrl(long seckillId);
+
+    /**
+     *  执行秒杀操作
+     * @param seckillId
+     * @param userPhone
+     * @param md5
+     * @return
+     */
+    SeckillExecution executeSeckill(long seckillId,long userPhone,String md5)
+            throws SeckillException,RepeatKillException, SeckillCloseException;
+}
+```
+
+> service/impl/SeckillServiceImpl.java   
+```java
+package com.plm.service.impl;
+
+import com.plm.dao.SeckillDao;
+import com.plm.dao.SuccessKilledDao;
+import com.plm.dto.Exposer;
+import com.plm.dto.SeckillExecution;
+import com.plm.entity.Seckill;
+import com.plm.entity.SuccessKilled;
+import com.plm.enums.SeckillStatEnum;
+import com.plm.exception.RepeatKillException;
+import com.plm.exception.SeckillCloseException;
+import com.plm.exception.SeckillException;
+import com.plm.service.SeckillService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.util.DigestUtils;
+
+import java.util.Date;
+import java.util.List;
+
+@Service
+public class SeckillServiceImpl implements SeckillService {
+
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    // 注入service依赖
+    @Autowired
+    private SeckillDao seckillDao;
+    @Autowired
+    private SuccessKilledDao successKilledDao;
+    // md5盐 ，随便写越复杂越好，用于混淆要加密的值，不易被破解
+    private final String slat = "fgvgsdbdHIOUBIYOfwgfw4&*()&^guybl";
+
+    @Override
+    public List<Seckill> getSeckillList() {
+        List<Seckill> seckills = seckillDao.findAll(0,4);
+        return seckills;
+    }
+
+    @Override
+    public Seckill getById(long seckillId) {
+        Seckill seckill = seckillDao.findById(seckillId);
+        return seckill;
+    }
+
+    @Override
+    @Transactional
+    public Exposer exportSeckillUrl(long seckillId) {
+        Seckill seckill = seckillDao.findById(seckillId);
+        if (seckill == null) {
+            return new Exposer(false, seckillId);
+        }
+        Date startTime = seckill.getStartTime();
+        Date endTime = seckill.getEndTime();
+        // 当前系统时间
+        Date curTime = new Date();
+        // 不能暴露秒杀地址
+        if (curTime.getTime() < startTime.getTime() || curTime.getTime() > endTime.getTime()) {
+            return new Exposer(false, seckillId, curTime.getTime(), startTime.getTime(), endTime.getTime());
+        }
+        // 可以暴露秒杀地址
+        // 转化特定字符串的过程，不可逆
+        String md5 = getMD5(seckillId);
+        return new Exposer(true,md5,seckillId);
+    }
+
+    // MD5加密
+    private String getMD5(long seckillId){
+        String base = seckillId + "/" +slat;
+        // base转为二进制进而加密
+        String md5 = DigestUtils.md5DigestAsHex(base.getBytes());
+        return md5;
+    }
+
+    // 秒杀是否成功，成功:减库存，增加明细；失败:抛出异常，事务回滚
+    @Override
+    public SeckillExecution executeSeckill(long seckillId, long userPhone, String md5) throws SeckillException, RepeatKillException, SeckillCloseException {
+
+        try {
+            // 商品不存在或者是重复秒杀
+            if (md5 == null || !md5.equals(getMD5(seckillId))) {
+                throw new SeckillException("seckill data rewrite");
+            }
+            Date curTime = new Date();
+            int updateCount = seckillDao.reduceNumber(seckillId, curTime);
+
+            if (updateCount <= 0) { // 秒杀失败，减库存失败
+                // 秒杀结束
+                throw new SeckillCloseException("seckill is closed");
+            } else { // 秒杀成功，减库存成功，增加明细
+                int insertCount = successKilledDao.insertSuccessKilled(seckillId, userPhone);
+                if (insertCount <= 0) {
+                    // 重复插入秒杀明细
+                    throw new RepeatKillException("seckill repeated");
+                } else {
+                    // 秒杀成功，增加明细成功
+                    SuccessKilled successKilled = successKilledDao.findByIdWithSeckill(seckillId, userPhone);
+                    return new SeckillExecution(seckillId, SeckillStatEnum.SUCCESS, successKilled);
+                }
+            }
+        } catch (RepeatKillException e1){ 
+            throw e1;
+        } catch (SeckillCloseException e2) {
+            throw e2;
+        }catch (SeckillException e) { // 回滚
+            logger.error(e.getMessage(),e);
+            throw new SeckillException("seckill inner error : "+e.getMessage());
+        }
+    }
+}
+```
+> > `在以上代码中，我们捕获了运行时异常，原因是Spring的事务默认是发生了RuntimeException才会回滚，发生了其他异常不会回滚，所以在最后的catch块里通过throw new SeckillException("seckill inner error :"+e.getMessage());将编译期异常转化为运行期异常。`  
+> > `调用枚举常量 SeckillStatEnum.SUCCESS `  
+
+## spring托管Service依赖理论
+> 业务对象依赖图
+> > ![业务对象依赖图](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/业务对象依赖图.png)
+
+> 本项目中IOC使用
+> > XML配置第三方类库 + package-scan扫描加了注解的自定义类service、Dao并注入到Spring容器中 + Annotation注解自定义的Service、Dao类  
+
+> 与Service相关的依赖配置在 spring/spring-service.xml  
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!-- 扫描service包下所有使用注解的类型 -->
+    <context:component-scan base-package="com.plm.service"></context:component-scan>
+    
+    <!-- 配置事务管理器 -->
+        <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+            <!-- 注入数据库连接池 -->
+            <property name="dataSource" ref="dataSource"></property>
+        </bean>
+    
+        <!-- 配置基于注解的声明式事务，默认使用注解来管理事务 -->
+        <tx:annotation-driven transaction-manager="transactionManager"></tx:annotation-driven>
+</beans>
+```
+> > `若<property name="dataSource" ref="dataSource"></property>中dataSource报红，但是使用正常，可能是编辑器未检测到注入依赖的问题，不用在意。`
+
+> 使用spring声明式事务管理
+> + 本项目使用 注解@Transactional方式声明事务  
+> 原因：  
+> 1、开发团队达成一致约定，统一标注事务方法的编程风格，不需要再去查编程文档；  
+> 2、保证事务方法的执行时间尽可能短，不要穿插其他的网络操作RPC/HTTP请求；  
+> 3、不是所有的方法都需要事务，如：只有一条修改操作，只读操作不需要事务。  
+> + 抛出运行期异常(RuntimeException)时事务回滚，出现异常不回滚可能会出现事务部分执行的情况  
+
+## service层的集成测试
+> resources/logback.xml配置文件
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoders are assigned the type
+             ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="debug">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
+
+```
+
+> /src/test/java/com/plm/service/SeckillServiceTest.java  
+```java
+package com.plm.service;
+
+import com.plm.dto.Exposer;
+import com.plm.dto.SeckillExecution;
+import com.plm.entity.Seckill;
+import com.plm.exception.RepeatKillException;
+import com.plm.exception.SeckillCloseException;
+import com.plm.exception.SeckillException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import java.util.List;
+
+import static org.junit.Assert.*;
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration({
+        "classpath:spring/spring-dao.xml",
+        "classpath:spring/spring-service.xml"
+})
+public class SeckillServiceTest {
+
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    @Autowired
+    private SeckillService seckillService;
+
+    @Test
+    public void getSeckillList() {
+        List<Seckill> list = seckillService.getSeckillList();
+        logger.info("list = {}",list);
+    }
+
+    @Test
+    public void getById() {
+        Seckill seckill = seckillService.getById(1000L);
+        logger.info("seckill = {}",seckill);
+    }
+
+    @Test
+    public void exportSeckillUrlAndexecuteSeckill() {
+        Exposer exposer = seckillService.exportSeckillUrl(1003L);
+        if(exposer.isExposed()){
+            logger.info("exposer = {}",exposer);
+            try {
+                SeckillExecution seckillExecution = seckillService.executeSeckill(1003L,
+                        12345678901L,exposer.getMd5());
+                logger.info("seckillExecution = {}",seckillExecution);
+            } catch (RepeatKillException e) {
+                logger.error(e.getMessage());
+            } catch (SeckillCloseException e){
+                logger.error(e.getMessage());
+            }
+        }else {
+            // 秒杀未开启
+            logger.warn("exposer = {}",exposer);
+        }
     }
 }
 ```
