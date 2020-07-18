@@ -1421,24 +1421,14 @@ public class SeckillServiceTest {
 > > 用 /user POST 新增用户 =代替= 原始的 /user/save POST 新增用户  
 > > 用 /user PUT 修改用户信息 =代替= 原始的 /user/update POST 修改用户信息  
 > > > 每次请求的接口或者地址,都在做描述,例如查询的时候用了 save,新增的时候用了 update,其实完全没有这个必要,我使用了get请求,就是查询.使用post请求,就是新增的请求,我的意图很明显,完全没有必要做描述,这就是为什么有了restful.
-> Restful规范： 
-name | 111 | 222 | 333 | 444
-:-: | :-: | :-: | :-: | :-:
-aaa | bbb | ccc | ddd | eee| 
-fff | ggg| hhh | iii | 000|
+> Restful规范:   
 
-http规范 ｜ 资源操作 ｜ 幂等性 ｜ 安全性  
-:-: | :-: | :-: | :-:  
-GET | 查询操作 | 是 | 是  
-POST | 添加/修改操作 | 否 | 否  
-PUT | 修改操作 | 是 | 否  
-DELETE | 删除操作 | 是 | 否  
- 
- 
-> > GET => 查询操作，满足幂等性，是安全的
-> > POST => 添加/修改操作，不满足幂等性，不安全
-> > PUT => 修改操作，符合幂等性，不安全
-> > DELETE => 删除操作，符合幂等性，不安全
+ http规范 | 资源操作 | 幂等性 | 安全性
+ :-: | :-: | :-: | :-:
+ GET | 查询操作 | 是 | 是
+ POST | 添加/修改操作| 否 | 否
+ PUT | 修改操作| 是 | 否
+ DELETE | 删除操作| 是 | 否
 
 ### 秒杀API的URL设计
 > 秒杀列表  GET /seckill/list  
@@ -2073,9 +2063,6 @@ var seckill = {
     });
 </script>
 </html>
-```'
-
-
-
+```
 
 # Java高并发秒杀API之高并发优化
