@@ -1162,6 +1162,9 @@ import com.plm.exception.SeckillException;
 import com.plm.service.SeckillService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
 import java.util.Date;
@@ -1181,7 +1184,7 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Override
     public List<Seckill> getSeckillList() {
-        List<Seckill> seckills = seckillDao.findAll(0,4);
+        List<Seckill> seckills = seckillDao.findAll(0, 4);
         return seckills;
     }
 
@@ -1191,6 +1194,15 @@ public class SeckillServiceImpl implements SeckillService {
         return seckill;
     }
 
+    /**
+     * 使用注解控制事务方法的有点：
+     * 1、开发团队达成一致约定，统一标注事务方法的编程风格，不需要再去查编程文档；
+     * 2、保证事务方法的执行时间尽可能短，不要穿插其他的网络操作RPC/HTTP请求；
+     * 3、不是所有的方法都需要事务，如：只有一条修改操作，只读操作不需要事务。
+     *
+     * @param seckillId
+     * @return
+     */
     @Override
     @Transactional
     public Exposer exportSeckillUrl(long seckillId) {
@@ -1209,12 +1221,12 @@ public class SeckillServiceImpl implements SeckillService {
         // 可以暴露秒杀地址
         // 转化特定字符串的过程，不可逆
         String md5 = getMD5(seckillId);
-        return new Exposer(true,md5,seckillId);
+        return new Exposer(true, md5, seckillId);
     }
 
     // MD5加密
-    private String getMD5(long seckillId){
-        String base = seckillId + "/" +slat;
+    private String getMD5(long seckillId) {
+        String base = seckillId + "/" + slat;
         // base转为二进制进而加密
         String md5 = DigestUtils.md5DigestAsHex(base.getBytes());
         return md5;
@@ -1230,30 +1242,40 @@ public class SeckillServiceImpl implements SeckillService {
                 throw new SeckillException("seckill data rewrite");
             }
             Date curTime = new Date();
-            int updateCount = seckillDao.reduceNumber(seckillId, curTime);
+            // 增加购买明细
+            int insertCount = successKilledDao.insertSuccessKilled(seckillId, userPhone);
 
-            if (updateCount <= 0) { // 秒杀失败，减库存失败
-                // 秒杀结束
-                throw new SeckillCloseException("seckill is closed");
-            } else { // 秒杀成功，减库存成功，增加明细
-                int insertCount = successKilledDao.insertSuccessKilled(seckillId, userPhone);
-                if (insertCount <= 0) {
+            if (insertCount <= 0) { // 看是否该明细被重复插入，即用户是否重复秒杀
+                // 重复秒杀
+                throw new RepeatKillException("seckill repeated");
+            } else {
+                // 秒杀成功，减库存成功
+                int updateCount = seckillDao.reduceNumber(seckillId,curTime);
+                if (updateCount <= 0) {
                     // 重复插入秒杀明细
-                    throw new RepeatKillException("seckill repeated");
+                    throw new RepeatKillException("seckill is closed");
                 } else {
                     // 秒杀成功，增加明细成功
                     SuccessKilled successKilled = successKilledDao.findByIdWithSeckill(seckillId, userPhone);
                     return new SeckillExecution(seckillId, SeckillStatEnum.SUCCESS, successKilled);
                 }
             }
-        } catch (RepeatKillException e1){ 
+        } catch (RepeatKillException e1) {
             throw e1;
         } catch (SeckillCloseException e2) {
             throw e2;
-        }catch (SeckillException e) { // 回滚
-            logger.error(e.getMessage(),e);
-            throw new SeckillException("seckill inner error : "+e.getMessage());
+        } catch (SeckillException e) { // 回滚
+            logger.error(e.getMessage(), e);
+            throw new SeckillException("seckill inner error : " + e.getMessage());
         }
+        /**
+         *  在以上代码中，我们捕获了运行时异常，
+         *  原因是Spring的事务默认是发生了RuntimeException才会回滚，
+         *  发生了其他异常不会回滚，
+         *  所以在最后的catch块里通过
+         *  throw new SeckillException("seckill inner error :"+e.getMessage());
+         *  将编译期异常转化为运行期异常。
+         */
     }
 }
 ```
@@ -1388,6 +1410,9 @@ public class SeckillServiceTest {
 ```
 
 # Java高并发秒杀API之Web层
+## 前端页面流程
+![前端页面流程](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/前端页面流程.png)
+
 ## 详情页流程逻辑
 ![详情页流程逻辑](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/详情页流程逻辑.png)
 > `获取当前标准系统时间`
@@ -1397,17 +1422,17 @@ public class SeckillServiceTest {
 > > 用 /user PUT 修改用户信息 =代替= 原始的 /user/update POST 修改用户信息  
 > > > 每次请求的接口或者地址,都在做描述,例如查询的时候用了 save,新增的时候用了 update,其实完全没有这个必要,我使用了get请求,就是查询.使用post请求,就是新增的请求,我的意图很明显,完全没有必要做描述,这就是为什么有了restful.
 > Restful规范： 
-> name | 111 | 222 | 333 | 444
-  :-: | :-: | :-: | :-: | :-:
-  aaa | bbb | ccc | ddd | eee| 
-  fff | ggg| hhh | iii | 000|
+name | 111 | 222 | 333 | 444
+:-: | :-: | :-: | :-: | :-:
+aaa | bbb | ccc | ddd | eee| 
+fff | ggg| hhh | iii | 000|
 
- http规范 ｜ 资源操作 ｜ 幂等性 ｜ 安全性  
- :-: | :-: | :-: | :-:
- GET | 查询操作 | 是 | 是  
- POST | 添加/修改操作 | 否 | 否  
- PUT | 修改操作 | 是 | 否  
- DELETE | 删除操作 | 是 | 否  
+http规范 ｜ 资源操作 ｜ 幂等性 ｜ 安全性  
+:-: | :-: | :-: | :-:  
+GET | 查询操作 | 是 | 是  
+POST | 添加/修改操作 | 否 | 否  
+PUT | 修改操作 | 是 | 否  
+DELETE | 删除操作 | 是 | 否  
  
  
 > > GET => 查询操作，满足幂等性，是安全的
@@ -1415,7 +1440,642 @@ public class SeckillServiceTest {
 > > PUT => 修改操作，符合幂等性，不安全
 > > DELETE => 删除操作，符合幂等性，不安全
 
+### 秒杀API的URL设计
+> 秒杀列表  GET /seckill/list  
+> 详情页   GET /seckill/{id}/detail  
+> 系统时间  GET /seckill/time/now
+> 暴露秒杀地址    POST /seckill/{id}/exposer
+> 执行秒杀  POST /seckill/{id}/{md5}/execution
+
+## SpringMVC整合Spring
+> SpringMVC框架理论  
+> > `围绕Handler开发`  
+
+> SpringMVC运行流程
+![SpringMVC运行流程](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/SpringMVC运行流程.png)
+
+> 注解映射
+> + @RequestMapping注解
+> + @ResponseBody注解  
+
+> 请求方法细节处理
+> + 请求参数绑定
+> + 请求方式绑定
+> + 请求转发和重定向
+> + 数据模型赋值
+![请求方法细节处理](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/请求方法细节处理1.png)
+> + 返回json数据
+![请求方法细节处理返回json数据](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/请求方法细节处理2json.png)
+> + cookie访问
+![请求方法细节处理cookie访问](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/请求方法细节处理3cookie.png)
+
+> 配置DispatcherServlet   resources/web.xml
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+		 http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+         version="3.1"
+         metadata-complete="true">
+    <!--
+        <!DOCTYPE web-app PUBLIC
+       "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+       "http://java.sun.com/dtd/web-app_2_3.dtd" >
+
+
+        Servlet2.3 版本中不支持 jsp el 需要将 Servlet修改为更高的版本
+        本项目使用 Servlet3.1版本
+    -->
+    <!-- 配置DispatcherServlet -->
+    <servlet>
+        <servlet-name>seckill-dispatcher</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+        <!--
+        配置SpringMVC需要加载的配置文件
+
+        spring-dao.xml  spring-service.xml  spring-web.xml
+            MyBatis           Spring           SpringMvc
+        -->
+        <init-param>
+            <param-name>contextConfigLocation</param-name>
+            <param-value>classpath:spring/spring-*.xml</param-value>
+        </init-param>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>seckill-dispatcher</servlet-name>
+        <!-- 默认加载所有的请求 -->
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+</web-app>
+```
+> SpringMVC配置文件 spring/spring-web.xml
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/mvc
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <!-- 配置SpringMVC -->
+
+    <!--
+        1、开启注解模式
+            简化配置：
+                1）、自动注册
+                2）、提供一系列：数据绑定、数字、日期的format  @NumberFormat   @DataTimeFormat
+                                xml、json默认读写支持
+     -->
+    <mvc:annotation-driven></mvc:annotation-driven>
+
+    <!--
+        2、静态资源默认servlet配置
+            1).加入对静态资源处理：js,gif,png
+            2).允许使用 "/" 做整体映射
+     -->
+    <mvc:default-servlet-handler></mvc:default-servlet-handler>
+
+    <!-- 3、配置jsp 显示ViewResolver -->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"></property>
+        <property name="prefix" value="/WEB-INF/jsp/"></property>
+        <property name="suffix" value=".jsp"></property>
+    </bean>
+    <!-- 4、扫描 web(controller) 相关的bean -->
+    <context:component-scan base-package="com.plm.web"></context:component-scan>
+</beans>
+```
+
+> web/SeckillController.java
+```java
+package com.plm.web;
+
+
+import com.plm.dto.Exposer;
+import com.plm.dto.SeckillExecution;
+import com.plm.dto.SeckillResult;
+import com.plm.entity.Seckill;
+import com.plm.enums.SeckillStatEnum;
+import com.plm.exception.RepeatKillException;
+import com.plm.exception.SeckillCloseException;
+import com.plm.exception.SeckillException;
+import com.plm.service.SeckillService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
+
+@Controller
+@RequestMapping("/seckill")
+public class SeckillController {
+
+    Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    @Autowired
+    private SeckillService seckillService;
+
+
+    /**
+     *  查看所有秒杀商品
+     * @param model
+     * @return
+     */
+    @RequestMapping(value = "/list", method = RequestMethod.GET)
+    public String list(Model model) {
+        // 获取列表
+        List<Seckill> list = seckillService.getSeckillList();
+        model.addAttribute("list", list);
+        //  /WEB-INF/jsp/list.jsp
+        return "list";
+    }
+
+
+    /**
+     * 查看某一秒杀商品的详细信息
+     * @param seckillId
+     * @param model
+     * @return
+     */
+    @RequestMapping(value = "/{seckillId}/detail", method = RequestMethod.GET)
+    public String detail(@PathVariable("seckillId") Long seckillId, Model model) {
+        if (seckillId == null) {
+            return "redirect:/seckill/list";
+        }
+        Seckill seckill = seckillService.getById(seckillId);
+        if (seckill == null) {
+            return "forward:/seckill/list";
+        }
+        model.addAttribute("seckill", seckill);
+        return "detail";
+    }
+
+    /**
+     *  暴露秒杀地址
+     * @param seckillId
+     * @return
+     */
+    @RequestMapping(value = "/{seckillId}/exposer",
+            method = RequestMethod.GET,
+            produces = {"application/json;charset=UTF-8"})
+    @ResponseBody // springmvc看到这个注解时会将 exposer()的返回值封装为json
+    public SeckillResult<Exposer> exposer(@PathVariable("seckillId") Long seckillId){
+        SeckillResult<Exposer> result;
+        try {
+            Exposer exposer = seckillService.exportSeckillUrl(seckillId);
+            // 请求成功
+            result = new SeckillResult<>(true,exposer);
+        } catch (Exception e) {
+            logger.error(e.getMessage(),e);
+            // 请求失败
+            result = new SeckillResult<>(false,e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     *  执行秒杀
+     * @param seckillId
+     * @param phone 从用户浏览器中名为killPhone的cookie中获取的，
+     *              但是存在一个问题当浏览器中没有名为killPhone的cookie时，springmvc会报错，
+     *              所以将其设为非必须的，即对名为killPhone的cookie的验证逻辑放在程序中处理，而不是直接报错.
+     * @param md5
+     * @return
+     */
+    @RequestMapping(value = "/{seckillId}/{md5}/execution",
+            method = RequestMethod.POST,
+            produces = {"application/json;charset=UTF-8"})
+    @ResponseBody
+    public SeckillResult<SeckillExecution> execute(@PathVariable("seckillId") Long seckillId,
+                                                   @CookieValue(value = "killPhone",required = false) Long phone,
+                                                   @PathVariable("md5") String md5){
+        // 对名为killPhone的cookie的验证逻辑放在程序中处理，而不是直接报错
+        if (phone == null){
+            return new SeckillResult<SeckillExecution>(false,"未注册");
+        }
+
+        try {
+            SeckillExecution execution = seckillService.executeSeckill(seckillId,phone,md5);
+            return new SeckillResult<SeckillExecution>(true,execution);
+        } catch (RepeatKillException e1) {
+            SeckillExecution execution = new SeckillExecution(seckillId, SeckillStatEnum.REPEAT_KILL);
+            return new SeckillResult<SeckillExecution>(true,execution);
+        } catch (SeckillCloseException e2) {
+            SeckillExecution execution = new SeckillExecution(seckillId,SeckillStatEnum.END);
+            return new SeckillResult<SeckillExecution>(true,execution);
+        } catch (SeckillException e) {
+            logger.error(e.getMessage(),e);
+            SeckillExecution execution = new SeckillExecution(seckillId,SeckillStatEnum.INNER_ERROR);
+            return new SeckillResult<SeckillExecution>(true,execution);
+        }
+    }
+
+    /**
+     *  获取系统当前的时间
+     * @return
+     */
+    @RequestMapping(value = "/time/now",method = RequestMethod.GET)
+    @ResponseBody
+    public SeckillResult<Long> getCurTime(){
+        Date curTime = new Date();
+        return new SeckillResult(true,curTime.getTime());
+    }
+}
+```
+
+> > `Service层中的抛出异常是为了让Spring能够回滚，Controller层中捕获异常是为了将异常转换为对应的Json供前台使用，缺一不可。`
+
+> dto/SeckillResult.java 所有ajax请求返回类型，封装 json结果
+```java
+package com.plm.dto;
+
+/**
+ *  所有ajax请求返回类型，封装 json结果
+ */
+public class SeckillResult<T> {
+
+    // 指页面是否发送请求成功
+    private boolean success;
+    private T data;
+    private String error;
+
+    public SeckillResult(boolean success, T data) {
+        this.success = success;
+        this.data = data;
+    }
+
+    public SeckillResult(boolean success, String error) {
+        this.success = success;
+        this.error = error;
+    }
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public T getData() {
+        return data;
+    }
+
+    public void setData(T data) {
+        this.data = data;
+    }
+
+    public String getError() {
+        return error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
+    }
+}
+```
+
+## 基于BootStrap开发前端页面
+> IDEA使用BootStrap的方式有两种  
+> 1、下载BootStrap前端组件库；  
+> 2、使用BootStrap CDN加速文件，但是这种使用的时候必须联网。  
+> 本项目使用CDN加速文件
+
+> jsp/common/head.jsp   单独提取出来相同的头部
+```jsp
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<!-- 引入 Bootstrap -->
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- HTML5 Shiv 和 Respond.js 用于让 IE8 支持 HTML5元素和媒体查询 -->
+<!-- 注意： 如果通过 file://  引入 Respond.js 文件，则该文件无法起效果 -->
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+<script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+<![endif]-->
+```
+
+> jsp/common/tag.jsp   共用的jstl 
+```jsp
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+``` 
+
+> jsp/list.jsp
+```jsp
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%-- 引入共用的jstl --%>
+<%@include file="common/tag.jsp" %>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>秒杀列表页</title>
+    <%-- 头部都是相同的，因此单独提取出来，放到head.jsp中 --%>
+    <%@include file="common/head.jsp" %>
+</head>
+<body>
+<%-- 页面显示部分 --%>
+<div class="container">
+    <div class="panel panel-default">
+        <div class="panel-heading text-center">
+            <h2>秒杀列表</h2>
+        </div>
+        <div class="panel-body">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>库存</th>
+                    <th>开始时间</th>
+                    <th>结束时间</th>
+                    <th>创建时间</th>
+                    <th>详情页</th>
+                </tr>
+                </thead>
+                <tbody>
+                <c:forEach var="sk" items="${list}">
+                    <tr>
+                        <td>${sk.name}</td>
+                        <td>${sk.number}</td>
+                        <td>
+                            <fmt:formatDate value="${sk.startTime}" pattern="yyyy-MM-dd HH:mm:ss"></fmt:formatDate>
+                        </td>
+                        <td>
+                            <fmt:formatDate value="${sk.endTime}" pattern="yyyy-MM-dd HH:mm:ss"></fmt:formatDate>
+                        </td>
+                        <td>
+                            <fmt:formatDate value="${sk.createTime}" pattern="yyyy-MM-dd HH:mm:ss"></fmt:formatDate>
+                        </td>
+                        <td>
+                            <a class="btn btn-info" href="/seckill/${sk.seckillId}/detail" target="_blank">查看</a>
+                        </td>
+                    </tr>
+                </c:forEach>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+<!-- jQuery (Bootstrap 的 JavaScript 插件需要引入 jQuery) -->
+<script src="https://code.jquery.com/jquery.js"></script>
+<!-- 包括所有已编译的插件 -->
+<script src="js/bootstrap.min.js"></script>
+</html>
+```
+
+> /webapp/resources/script/seckill.js   存放主要交互逻辑js代码
+```js
+// 存放主要交互逻辑js代码 模块化编写
+
+var seckill = {
+    // 封装秒杀相关ajax的url
+    URL:{
+        now: function () {
+            return '/seckill/time/now';
+        },
+
+        exposer: function (seckillId) {
+            return '/seckill/'+seckillId+'/exposer';
+        },
+
+        execution: function (seckillId,md5) {
+            return '/seckill/'+seckillId+'/'+md5+'/execution';
+        }
+    },
+
+    // 验证手机号
+    validatePhone: function(phone){
+        if(phone && phone.length==11 && !isNaN(phone)){
+            return true;
+        }else {
+            return false;
+        }
+    },
+
+    // 执行秒杀
+    handlerSeckill: function(seckillId,node){
+        // 获取秒杀地址，控制显示器，执行秒杀
+        node.hide().html('<button class="btn btn-primary btn-lg" id="killBtn">开始秒杀</button>');
+
+        $.get(seckill.URL.exposer(seckillId),{},function (result) {
+            // 在回调函数执行交互流程
+            if(result && result['success']){
+                var exposer = result['data'];
+                if(exposer['exposed']){
+                    // 开启秒杀 获取秒杀地址
+                    var md5 = exposer['md5'];
+                    var killUrl = seckill.URL.execution(seckillId,md5);
+                    console.log("killUrl: "+killUrl);
+                    // 绑定一次点击事件
+                    $('#killBtn').one('click',function () {
+                        // 执行秒杀请求
+                        // 1、先禁用按钮
+                        $(this).addClass('disabled');//this == #killBtn
+                        // 2、发送秒杀请求执行秒杀
+                        $.post(killUrl,{},function (result) {
+                            if(result && result['success']){
+                                var killResult = result['data'];
+                                var state = killResult['state'];
+                                var stateInfo = killResult['stateInfo'];
+                                // 显示秒杀结果
+                                node.html('<span class="label label-success">' + stateInfo + '</span>');
+                            }
+                        });
+                    });
+                    node.show();
+                }else {
+                    // 由于设备存在时间偏移可能存在未开启秒杀的
+                    var now = exposer['now'];
+                    var start = exposer['start'];
+                    var end = exposer['end'];
+                    // 重新开始秒杀
+                    seckill.countDown(seckillId,now,start,end);
+                }
+            }else {
+                console.log('result: '+result);
+            }
+        });
+    },
+
+    // 时间判断 计时交互
+    countDown: function(seckillId,nowTime,startTime,endTime){
+        console.log(seckillId+'_'+nowTime+'_'+startTime+'_'+endTime);
+        var seckillBox = $('#seckill-box');
+        // 秒杀已经结束
+        if(nowTime > endTime){
+            seckillBox.html('秒杀结束！');
+        }else if (nowTime < startTime){
+            // 秒杀还未开始，计时事件绑定
+            var killTime = new Date(startTime+1000); // +1秒，是为了防止时间偏移
+            seckillBox.countdown(killTime,function (event) {
+                // 时间格式化
+                var format = event.strftime('秒杀倒计时：%D天 %H时 %M分 %S秒');
+                seckillBox.html(format);
+            }).on('finish.countdown',function () {
+                // 当倒计时到达秒杀时间，回调事件，获取秒杀地址，控制实现逻辑，执行秒杀
+                console.log('____finish.countdown');
+                seckill.handlerSeckill(seckillId,seckillBox);
+            });
+        } else {
+            // 秒杀开始
+            seckill.handlerSeckill(seckillId,seckillBox);
+        }
+    },
+
+    // 详情页秒杀逻辑
+    detail:{
+        // 详情页初始化
+        init: function (params) {
+            // 手机验证和登录
+            // 在cookie中查找手机号
+            var killPhone = $.cookie('killPhone');
+            // 验证手机号
+            if(!seckill.validatePhone(killPhone)) {
+                // 绑定手机号    控制输出
+                var killPhoneModal = $('#killPhoneModal');
+                killPhoneModal.modal({
+                    show: true, // 显示弹出层
+                    backdrop: 'static', // 禁止位置关闭
+                    keyboard: false // 关闭键盘事件
+                });
+
+                $('#killPhoneBtn').click(function () {
+                    var inputPhone = $('#killPhoneKey').val();
+                    console.log("inputPhone===="+inputPhone);
+                    if (seckill.validatePhone(inputPhone)) {
+                        // 电话写入cookie(7天过期)
+                        $.cookie('killPhone',inputPhone,{expires: 7,path: '/seckill'});
+                        // 验证通过 刷新页面
+                        window.location.reload();
+                    }else {
+                        // 错误文案信息实际项目中应该抽取到前端字典里
+                        $('#killPhoneMessage').hide().html('<label class="label label-danger">手机号错误！</label>').show(300);
+                    }
+                });
+            }
+
+
+            // 已经登陆
+            // 规划交互流程，计时交互
+            var startTime = params['startTime'];
+            var endTime = params['endTime'];
+            var seckillId = params['seckillId'];
+            console.log("开始秒杀时间===="+startTime);
+            console.log("结束秒杀时间===="+endTime);
+            $.get(seckill.URL.now(),{},function (result) {
+                // 请求成功
+                if(result && result['success']){
+                    var nowTime = result['data'];
+                    // 时间判断 计时交互
+                    seckill.countDown(seckillId,nowTime,startTime,endTime);
+                }else {
+                    console.log('result: '+result);
+                    alert('result: '+result);
+                }
+            });
+        }
+    }
+};
+```
+
+> jsp/detail.jsp
+```jsp
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@include file="common/tag.jsp"%>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>秒杀详情页</title>
+    <%@include file="common/head.jsp"%>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel panel-default text-center">
+        <div class="panel-heading">
+            <h1>${seckill.name}</h1>
+        </div>
+
+        <div class="panel-body">
+            <h2 class="text-danger">
+                <%-- 显示time图标 --%>
+                <span class="glyphicon glyphicon-time"></span>
+                <%-- 展示倒计时 --%>
+                <span class="glyphicon" id="seckill-box"></span>
+            </h2>
+        </div>
+    </div>
+</div>
+
+<%-- 登陆弹出层  输入电话--%>
+<div id="killPhoneModal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h3 class="modal-title text-center">
+                    <span class="glyphicon glyphicon-phone"></span>秒杀电话：
+                </h3>
+            </div>
+
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-xs-8 col-xs-offset-2">
+                        <input type="text" name="killPhone" id="killPhoneKey" placeholder="填写手机号" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <%--验证信息--%>
+                <span id="killPhoneMessage" class="glyphicon"></span>
+                <button type="button" id="killPhoneBtn" class="btn btn-success">
+                    <span class="glyphicon glyphicon-phone"></span>
+                    Submit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+<%--jQery文件,务必在bootstrap.min.js之前引入--%>
+<script src="http://apps.bdimg.com/libs/jquery/2.0.0/jquery.min.js"></script>
+<script src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+<%--使用CDN 获取公共js http://www.bootcdn.cn/--%>
+<%--jQuery Cookie操作插件--%>
+<script src="http://cdn.bootcss.com/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+<%--jQuery countDown倒计时插件--%>
+<script src="https://cdn.bootcss.com/jquery.countdown/2.1.0/jquery.countdown.min.js"></script>
+<%--开始编写交互逻辑--%>
+<script src="/resources/script/seckill.js" type="text/javascript"></script>
+<script type="text/javascript">
+    $(function () {
+        // 使用EL表达式传入参数
+        seckill.detail.init({
+            seckillId : ${seckill.seckillId},
+            startTime : ${seckill.startTime.time},// 毫秒
+            endTime : ${seckill.endTime.time}
+        });
+    });
+</script>
+</html>
+```'
 
 
 
 
+# Java高并发秒杀API之高并发优化
