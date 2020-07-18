@@ -80,7 +80,7 @@
 # Java高并发秒杀API之业务分析与Dao层
 ## 创建项目
 > 创建Maven项目
-> > ![IDEA中创建Maven项目](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/IDEA中创建Maven项目.png)
+> > ![IDEA中创建Maven项目](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/IDEA中创建Maven项目.png)
 
 > > Maven项目创建过程中要注意
 > > > web.xml文件 servlet2.3 版本中不支持 jsp el ,需要将 servlet修改为更高的版本,本项目使用 servlet3.1版本  
@@ -1284,7 +1284,7 @@ public class SeckillServiceImpl implements SeckillService {
 
 ## spring托管Service依赖理论
 > 业务对象依赖图
-> > ![业务对象依赖图](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/业务对象依赖图.png)
+> > ![业务对象依赖图](https://github.com/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/业务对象依赖图.png)
 
 > 本项目中IOC使用
 > > XML配置第三方类库 + package-scan扫描加了注解的自定义类service、Dao并注入到Spring容器中 + Annotation注解自定义的Service、Dao类  
@@ -1410,11 +1410,11 @@ public class SeckillServiceTest {
 ```
 
 # Java高并发秒杀API之Web层
-## 前端页面流程
-![前端页面流程](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/前端页面流程.png)
+## 前端页面流程  
+![前端页面流程](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E5%89%8D%E7%AB%AF%E9%A1%B5%E9%9D%A2%E6%B5%81%E7%A8%8B.png)
 
-## 详情页流程逻辑
-![详情页流程逻辑](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/详情页流程逻辑.png)
+## 详情页流程逻辑  
+![详情页流程逻辑](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E8%AF%A6%E6%83%85%E9%A1%B5%E6%B5%81%E7%A8%8B%E9%80%BB%E8%BE%91.png)
 > `获取当前标准系统时间`
 ## Restful接口
 > 一种优雅的URI表述方式、资源的状态和状态转移  
@@ -1442,8 +1442,8 @@ public class SeckillServiceTest {
 > SpringMVC框架理论  
 > > `围绕Handler开发`  
 
-> SpringMVC运行流程
-![SpringMVC运行流程](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/SpringMVC运行流程.png)
+> SpringMVC运行流程  
+![SpringMVC运行流程](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/SpringMVC运行流程.png)
 
 > 注解映射
 > + @RequestMapping注解
@@ -1453,12 +1453,12 @@ public class SeckillServiceTest {
 > + 请求参数绑定
 > + 请求方式绑定
 > + 请求转发和重定向
-> + 数据模型赋值
-![请求方法细节处理](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/请求方法细节处理1.png)
-> + 返回json数据
-![请求方法细节处理返回json数据](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/请求方法细节处理2json.png)
-> + cookie访问
-![请求方法细节处理cookie访问](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/请求方法细节处理3cookie.png)
+> + 数据模型赋值  
+![请求方法细节处理](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E8%AF%B7%E6%B1%82%E6%96%B9%E6%B3%95%E7%BB%86%E8%8A%82%E5%A4%84%E7%90%861.png)
+> + 返回json数据  
+![请求方法细节处理返回json数据](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E8%AF%B7%E6%B1%82%E6%96%B9%E6%B3%95%E7%BB%86%E8%8A%82%E5%A4%84%E7%90%862json.png)
+> + cookie访问  
+![请求方法细节处理cookie访问](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E8%AF%B7%E6%B1%82%E6%96%B9%E6%B3%95%E7%BB%86%E8%8A%82%E5%A4%84%E7%90%863cookie.png)
 
 > 配置DispatcherServlet   resources/web.xml
 ```xml
