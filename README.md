@@ -1421,6 +1421,7 @@ public class SeckillServiceTest {
 > > 用 /user POST 新增用户 =代替= 原始的 /user/save POST 新增用户  
 > > 用 /user PUT 修改用户信息 =代替= 原始的 /user/update POST 修改用户信息  
 > > > 每次请求的接口或者地址,都在做描述,例如查询的时候用了 save,新增的时候用了 update,其实完全没有这个必要,我使用了get请求,就是查询.使用post请求,就是新增的请求,我的意图很明显,完全没有必要做描述,这就是为什么有了restful.
+
 > Restful规范:   
 
  http规范 | 资源操作 | 幂等性 | 安全性
