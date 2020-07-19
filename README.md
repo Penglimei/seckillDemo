@@ -2750,3 +2750,68 @@ select @r_result;
     注意这里是指同一个秒杀商品6000qps(每秒查询率)，如果是不同商品不存在行级锁竞争的问题。`
 
 ## 压测工具
+> 压测：  
+    压力测试，，是`确立系统稳定性的一种测试方法，通常在系统正常运作范围之外进行`，
+    以考察其功能极限和隐患。  
+    系统性能包括时间和空间两个维度，
+    `时间是指客户操作业务的响应时间，空间是指系统执行客户端请求时，系统资源消耗情况`。  
+> 压测的指标  
+> + QPS/TPS：系统每秒能处理的请求/事务的数量，或者说吞吐量
+> + 并发数：时间段内，系统同时处理web请求响应数量
+> + 响应时间：从客户端发一个请求开始计时，到客户端接收到从服务器端返回的响应结果结束，
+            所经历的时间，`响应时间由请求发送时间、网络传输时间和服务器处理时间三部分组成。`
+> + PV：用户通过浏览器访问页面，对应用服务器产生的每一次请求
+> + CPU资源：判断系统处理能力以及应用运行是否稳定的重要参数
+
+> 压测工具  
+> + kylinTOP测试与监控平台（商用版）
+> + LoadRunner（商用版）
+> + `Apache JMeter（开源免费）`
+> + WebLOAD（商用版）
+> + Loadster（商用版本）
+> + Loadstorm（商用版本）
+> + Load impact（免费使用）
+> + locust(开源免费)
+> + OpenSTA(开源免费)
+
+> Jmeter进行压测  
+> Jmeter 安装：
+> > 1、安装Jmeter http://jmeter.apache.org/download_jmeter.cgi  
+> > 2、进入解压对应目录的bin目录下
+> > ```
+> > cd /Users/penglimei/jmeter/apache-jmeter-5.3/bin
+> > ```
+> > 3、执行命令，打开图形界面
+> > ```
+> > sh jmeter
+> > ```
+
+> 模拟 Jmeter 请求  
+> https://www.cnblogs.com/monjeo/p/9330464.html
+> > 1、添加 Jmeter线程组  
+> > 2、配置 Jmeter线程组  
+> > 3、添加 Jmeter HTTP请求  
+> > 4、添加 HTTP 请求参数  
+> > 5、执行 Jmeter并添加结果查看视图/聚合报告  
+> > 聚合报告参数详解：
+> > + Label：每个 JMeter 的 element（例如 HTTP Request）都有一个 Name 属性，这里显示的就是 Name 属性的值  
+> > + Samples：请求数——表示这次测试中一共发出了多少个请求  
+> > + Average：平均响应时间---默认情况下是单个 Request 的平均响应时间  
+> > + Median：也就是 50％ 用户的响应时间  
+> > + 90%Line：90％ 用户的响应时间  
+> > + Min：最小响应时间  
+> > + Max：最大响应时间  
+> > + Error%：错误率---错误请求数/请求总数  
+> > + Throughput：吞吐量---默认情况下表示每秒完成的请求数
+> > + KB/Sec：每秒从服务器端接收到的数据量  
+
+> > jmeter 压测 https://www.cnblogs.com/jpfss/p/10773222.html
+
+> > 执行测试计划不能用GUI，需要用命令行来执行,线程数量和循环次数将会影响最终的测试报告
+> > ```
+> > jmeter -n -t testplan/RedisLock.jmx -l testplan/result/result.txt -e -o testplan/webreport
+> > 
+> > testplan/RedisLock.jmx 为测试计划文件路径
+> > testplan/result/result.txt 为测试结果文件路径
+> > testplan/webreport 为web报告保存路径。
+> > ```
