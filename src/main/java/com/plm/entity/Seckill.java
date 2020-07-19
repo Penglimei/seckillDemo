@@ -1,12 +1,11 @@
 package com.plm.entity;
 
-import java.io.Serializable;
 import java.util.Date;
 
 /**
  *  库存 实体类
  */
-public class Seckill implements Serializable {
+public class Seckill {
 
     private long seckillId;
     private String name;

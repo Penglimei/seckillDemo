@@ -1,13 +1,12 @@
 package com.plm.entity;
 
 
-import java.io.Serializable;
 import java.util.Date;
 
 /**
  *  秒杀成功明细实体
  */
-public class SuccessKilled implements Serializable {
+public class SuccessKilled {
 
     private long seckillId;
     private long userPhone;

@@ -96,11 +96,46 @@ public class SeckillController {
      * @param md5
      * @return
      */
+//    @RequestMapping(value = "/{seckillId}/{md5}/execution",
+//            method = RequestMethod.POST,
+//            produces = {"application/json;charset=UTF-8"})
+//    @ResponseBody
+//    public SeckillResult<SeckillExecution> execute(@PathVariable("seckillId") Long seckillId,
+//                                                   @CookieValue(value = "killPhone",required = false) Long phone,
+//                                                   @PathVariable("md5") String md5){
+//        // 对名为killPhone的cookie的验证逻辑放在程序中处理，而不是直接报错
+//        if (phone == null){
+//            return new SeckillResult<SeckillExecution>(false,"未注册");
+//        }
+//
+//        try {
+//            SeckillExecution execution = seckillService.executeSeckill(seckillId,phone,md5);
+//            return new SeckillResult<SeckillExecution>(true,execution);
+//        } catch (RepeatKillException e1) {
+//            SeckillExecution execution = new SeckillExecution(seckillId, SeckillStatEnum.REPEAT_KILL);
+//            return new SeckillResult<SeckillExecution>(true,execution);
+//        } catch (SeckillCloseException e2) {
+//            SeckillExecution execution = new SeckillExecution(seckillId,SeckillStatEnum.END);
+//            return new SeckillResult<SeckillExecution>(true,execution);
+//        } catch (SeckillException e) {
+//            logger.error(e.getMessage(),e);
+//            SeckillExecution execution = new SeckillExecution(seckillId,SeckillStatEnum.INNER_ERROR);
+//            return new SeckillResult<SeckillExecution>(true,execution);
+//        }
+//    }
+
+    /**
+     * 执行秒杀-----通过调用存储过程实现
+     * @param seckillId
+     * @param phone
+     * @param md5
+     * @return
+     */
     @RequestMapping(value = "/{seckillId}/{md5}/execution",
             method = RequestMethod.POST,
             produces = {"application/json;charset=UTF-8"})
     @ResponseBody
-    public SeckillResult<SeckillExecution> execute(@PathVariable("seckillId") Long seckillId,
+    public SeckillResult<SeckillExecution> executeProcedure(@PathVariable("seckillId") Long seckillId,
                                                    @CookieValue(value = "killPhone",required = false) Long phone,
                                                    @PathVariable("md5") String md5){
         // 对名为killPhone的cookie的验证逻辑放在程序中处理，而不是直接报错
@@ -109,7 +144,8 @@ public class SeckillController {
         }
 
         try {
-            SeckillExecution execution = seckillService.executeSeckill(seckillId,phone,md5);
+            // 调用存储过程执行秒杀seckillService.executeSeckillProcedure
+            SeckillExecution execution = seckillService.executeSeckillProcedure(seckillId,phone,md5);
             return new SeckillResult<SeckillExecution>(true,execution);
         } catch (RepeatKillException e1) {
             SeckillExecution execution = new SeckillExecution(seckillId, SeckillStatEnum.REPEAT_KILL);

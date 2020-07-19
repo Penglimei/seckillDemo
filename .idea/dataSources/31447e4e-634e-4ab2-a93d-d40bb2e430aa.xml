@@ -980,7 +980,12 @@
       <Comment>秒杀成功明细表</Comment>
       <Collation>utf8_general_ci</Collation>
     </table>
-    <column id="251" parent="249" name="seckill_id">
+    <routine id="251" parent="20" name="execute_seckill">
+      <SourceTextLength>914</SourceTextLength>
+      <Definer>root@localhost</Definer>
+      <RoutineKind>procedure</RoutineKind>
+    </routine>
+    <column id="252" parent="249" name="seckill_id">
       <Position>1</Position>
       <Comment>库存商品ID</Comment>
       <DataType>bigint(20)|0s</DataType>
@@ -988,21 +993,21 @@
       <SequenceIdentity>1</SequenceIdentity>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="252" parent="249" name="name">
+    <column id="253" parent="249" name="name">
       <Position>2</Position>
       <Comment>商品名称</Comment>
       <DataType>varchar(120)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="253" parent="249" name="number">
+    <column id="254" parent="249" name="number">
       <Position>3</Position>
       <Comment>库存数量</Comment>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="254" parent="249" name="create_time">
+    <column id="255" parent="249" name="create_time">
       <Position>4</Position>
       <Comment>创始时间</Comment>
       <DataType>timestamp|0s</DataType>
@@ -1010,7 +1015,7 @@
       <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="255" parent="249" name="start_time">
+    <column id="256" parent="249" name="start_time">
       <Position>5</Position>
       <Comment>秒杀开始时间</Comment>
       <DataType>timestamp|0s</DataType>
@@ -1018,7 +1023,7 @@
       <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="256" parent="249" name="end_time">
+    <column id="257" parent="249" name="end_time">
       <Position>6</Position>
       <Comment>秒杀结束时间</Comment>
       <DataType>timestamp|0s</DataType>
@@ -1026,38 +1031,38 @@
       <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <index id="257" parent="249" name="idx_create_time">
+    <index id="258" parent="249" name="idx_create_time">
       <ColNames>create_time</ColNames>
       <Type>btree</Type>
     </index>
-    <index id="258" parent="249" name="idx_start_time">
+    <index id="259" parent="249" name="idx_start_time">
       <ColNames>start_time</ColNames>
       <Type>btree</Type>
     </index>
-    <index id="259" parent="249" name="idx_end_time">
+    <index id="260" parent="249" name="idx_end_time">
       <ColNames>end_time</ColNames>
       <Type>btree</Type>
     </index>
-    <key id="260" parent="249" name="PRIMARY">
+    <key id="261" parent="249" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <ColNames>seckill_id</ColNames>
       <Primary>1</Primary>
     </key>
-    <column id="261" parent="250" name="seckill_id">
+    <column id="262" parent="250" name="seckill_id">
       <Position>1</Position>
       <Comment>秒杀商品ID</Comment>
       <DataType>bigint(20)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="262" parent="250" name="user_phone">
+    <column id="263" parent="250" name="user_phone">
       <Position>2</Position>
       <Comment>用户手机号</Comment>
       <DataType>bigint(20)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="263" parent="250" name="state">
+    <column id="264" parent="250" name="state">
       <Position>3</Position>
       <Comment>状态标识:-1:无效 0:成功 1:已付款 2:已发货</Comment>
       <DataType>tinyint(4)|0s</DataType>
@@ -1065,7 +1070,7 @@
       <DefaultExpression>-1</DefaultExpression>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="264" parent="250" name="create_time">
+    <column id="265" parent="250" name="create_time">
       <Position>4</Position>
       <Comment>创建时间</Comment>
       <DataType>timestamp|0s</DataType>
@@ -1074,15 +1079,32 @@
       <ColumnKind>normal</ColumnKind>
       <OnUpdate>CURRENT_TIMESTAMP</OnUpdate>
     </column>
-    <index id="265" parent="250" name="idx_create_time">
+    <index id="266" parent="250" name="idx_create_time">
       <ColNames>create_time</ColNames>
       <Type>btree</Type>
     </index>
-    <key id="266" parent="250" name="PRIMARY">
+    <key id="267" parent="250" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <ColNames>seckill_id
 user_phone</ColNames>
       <Primary>1</Primary>
     </key>
+    <argument id="268" parent="251" name="v_seckill_id">
+      <Position>1</Position>
+      <DataType>bigint(20)|0s</DataType>
+    </argument>
+    <argument id="269" parent="251" name="v_phone">
+      <Position>2</Position>
+      <DataType>bigint(20)|0s</DataType>
+    </argument>
+    <argument id="270" parent="251" name="v_kill_time">
+      <Position>3</Position>
+      <DataType>timestamp|0s</DataType>
+    </argument>
+    <argument id="271" parent="251" name="r_result">
+      <Position>4</Position>
+      <ArgumentDirection>O</ArgumentDirection>
+      <DataType>int(11)|0s</DataType>
+    </argument>
   </database-model>
 </dataSource>

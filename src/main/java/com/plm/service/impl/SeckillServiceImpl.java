@@ -2,6 +2,7 @@ package com.plm.service.impl;
 
 import com.plm.dao.SeckillDao;
 import com.plm.dao.SuccessKilledDao;
+import com.plm.dao.cache.RedisDao;
 import com.plm.dto.Exposer;
 import com.plm.dto.SeckillExecution;
 import com.plm.entity.Seckill;
@@ -11,6 +12,7 @@ import com.plm.exception.RepeatKillException;
 import com.plm.exception.SeckillCloseException;
 import com.plm.exception.SeckillException;
 import com.plm.service.SeckillService;
+import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class SeckillServiceImpl implements SeckillService {
@@ -32,6 +36,8 @@ public class SeckillServiceImpl implements SeckillService {
     private SuccessKilledDao successKilledDao;
     // md5盐 ，随便写越复杂越好，用于混淆要加密的值，不易被破解
     private final String slat = "fgvgsdbdHIOUBIYOfwgfw4&*()&^guybl";
+    @Autowired
+    private RedisDao redisDao;
 
     @Override
     public List<Seckill> getSeckillList() {
@@ -57,9 +63,18 @@ public class SeckillServiceImpl implements SeckillService {
     @Override
     @Transactional
     public Exposer exportSeckillUrl(long seckillId) {
-        Seckill seckill = seckillDao.findById(seckillId);
-        if (seckill == null) {
-            return new Exposer(false, seckillId);
+        // 优化点：缓存优化,建立在超时(1小时)的基础上维护一致性
+        // 1、访问redis
+        Seckill seckill = redisDao.getSeckill(seckillId);
+        if(seckill == null){
+            // 2、访问数据库
+            seckill = seckillDao.findById(seckillId);
+            if (seckill == null){
+                return new Exposer(false,seckillId);
+            }else {
+                // 3、放入redis
+                redisDao.putSeckill(seckill);
+            }
         }
         Date startTime = seckill.getStartTime();
         Date endTime = seckill.getEndTime();
@@ -127,5 +142,33 @@ public class SeckillServiceImpl implements SeckillService {
          *  throw new SeckillException("seckill inner error :"+e.getMessage());
          *  将编译期异常转化为运行期异常。
          */
+    }
+
+    // 秒杀是否成功，成功:减库存，增加明细；失败:抛出异常，事务回滚----通过存储过程实现
+    @Override
+    public SeckillExecution executeSeckillProcedure(long seckillId, long userPhone, String md5) {
+        if (md5==null || !md5.equals(getMD5(seckillId))){
+            return new SeckillExecution(seckillId,SeckillStatEnum.DATA_REWRITE);
+        }
+        Date killTime = new Date();
+        Map<String,Object> map = new HashMap<>();
+        map.put("seckillId",seckillId);
+        map.put("phone",userPhone);
+        map.put("killTime",killTime);
+        map.put("result",null);
+        // 执行存储过程，result被赋值
+        try {
+            seckillDao.killByProcedure(map);
+            int result = MapUtils.getInteger(map,"result",-2);
+            if(result == 1){
+                SuccessKilled successKilled = successKilledDao.findByIdWithSeckill(seckillId,userPhone);
+                return new SeckillExecution(seckillId,SeckillStatEnum.SUCCESS,successKilled);
+            }else {
+                return new SeckillExecution(seckillId,SeckillStatEnum.stateOf(result));
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(),e);
+            return new SeckillExecution(seckillId,SeckillStatEnum.INNER_ERROR);
+        }
     }
 }
