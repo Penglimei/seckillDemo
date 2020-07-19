@@ -2078,7 +2078,7 @@ var seckill = {
   因此，`要提高系统的性能，就需要尽可能减少磁盘I/O`。  
   
 > 存在高并发的地方：
-![高并发分析](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/高并发分析.png)
+![高并发分析](https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E9%AB%98%E5%B9%B6%E5%8F%91%E5%88%86%E6%9E%90.png)
 
 
 > + 详情页  
@@ -2489,7 +2489,14 @@ public class SeckillServiceImpl implements SeckillService {
 > 简单优化  
 > 优化后，`insert ignore sql语句如果返回结果是0，说明存在重复秒杀，
    不再执行后续的 update操作，可以减少行级锁持有时间。`  
-![事务优化前](Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/优化前事务执行.png)![事务优化后](/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/优化后事务执行.png)
+<center>  
+<figure>  
+<img src="https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E4%BC%98%E5%8C%96%E5%89%8D%E4%BA%8B%E5%8A%A1%E6%89%A7%E8%A1%8C.png"/>
+
+<img src="https://github.com/Penglimei/seckillDemo/blob/master/src/main/webapp/WEB-INF/pictures/%E4%BC%98%E5%8C%96%E5%90%8E%E4%BA%8B%E5%8A%A1%E6%89%A7%E8%A1%8C.png"/>
+</figure>  
+</center>  
+
 > 代码优化 SeckillServiceImpl.java 的 executeSeckill()方法
 ```java
     private String getMD5(long seckillId) {
@@ -2542,14 +2549,7 @@ public class SeckillServiceImpl implements SeckillService {
 > 3、`先insert并不会忽略库存不足的情况，因为insert和update是在同一个事务里，
     仅有insert并不一定会提交，只有在update也成功后才会提交，
     所以并不会造成过量插入秒杀成功记录的现象。`
-<center>  
-<figure>  
-<img src="/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/优化前事务执行.png"/>
-
-<img src="/Users/penglimei/IntelliJ_IDEAProjects/Interview/seckillDemo/src/main/webapp/WEB-INF/pictures/优化后事务执行.png"/>
-</figure>  
-</center>  
-
+    
 > 深度优化  
 > > 简单优化存在的问题是：  
     依然存在着`Java客户端和服务器通信时的网络延迟和GC影响`。  
