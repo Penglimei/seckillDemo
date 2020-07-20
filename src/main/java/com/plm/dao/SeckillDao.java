@@ -26,22 +26,16 @@ public interface SeckillDao {
 
 
     /**
-     *  根据偏移量offset 查询秒杀产品列表
-     * @param offset 偏移量
-     * @param limit 从偏移量往后数要获取多少个产品的信息
-     * @return
+     *  查询秒杀产品列表
      *
-     *  由于offset、limit两个参数传入方法时是形参arg0,arg1，
-     *  SeckillDao.xml中获取两个参数时并不知道哪一个是谁，
-     *  因此需要使用 MyBatis的注解@Param() 让SeckillDao.xml中获取两个参数时
-     *  知道哪一个是offset，哪一个是limit
-     *  @Param("offset")int offset, @Param("limit")int limit
      */
-    List<Seckill> findAll(@Param("offset")int offset, @Param("limit")int limit);
+
+    List<Seckill> getAllSeckill();
 
     /**
      * 使用存储过程执行秒杀
      * @param paramMap
      */
     void killByProcedure(Map<String,Object> paramMap);
+
 }

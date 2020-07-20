@@ -44,7 +44,7 @@ public class SeckillDaoTest {
 
     @Test
     public void findAll() {
-        List<Seckill> seckills = seckillDao.findAll(0,100);
+        List<Seckill> seckills = seckillDao.getAllSeckill();
         for(Seckill seckill : seckills){
             System.out.println(seckill);
         }

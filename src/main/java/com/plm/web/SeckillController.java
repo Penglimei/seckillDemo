@@ -1,6 +1,8 @@
 package com.plm.web;
 
 
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.plm.dto.Exposer;
 import com.plm.dto.SeckillExecution;
 import com.plm.dto.SeckillResult;
@@ -36,10 +38,14 @@ public class SeckillController {
      * @return
      */
     @RequestMapping(value = "/list", method = RequestMethod.GET)
-    public String list(Model model) {
-        // 获取列表
-        List<Seckill> list = seckillService.getSeckillList();
-        model.addAttribute("list", list);
+    public String list(Model model,@RequestParam(defaultValue = "1",required = true,value = "curPage") Integer curPage) {
+        Integer pageSize = 2;
+        //分页查询
+        PageHelper.startPage(curPage,pageSize);
+        //获取所有 seckill 信息
+        List<Seckill> seckills = seckillService.getSeckillList();
+        PageInfo<Seckill> pageInfo = new PageInfo<>(seckills);
+        model.addAttribute("pageInfo",pageInfo);
         //  /WEB-INF/jsp/list.jsp
         return "list";
     }

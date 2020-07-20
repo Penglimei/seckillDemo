@@ -21,8 +21,18 @@
     </select>
 
     <!-- 根据偏移量offset 查询秒杀产品列表 -->
-    <select id="findAll" resultType="com.plm.entity.Seckill">
-        select seckill_id,name,number,start_time,end_time,create_time from seckill
-        order by create_time desc limit #{offset},#{limit};
+    <select id="getAllSeckill" resultType="com.plm.entity.Seckill">
+        select * from seckill
+    </select>
+
+
+    <!-- mybtis调用存储过程 -->
+    <select id="killByProcedure" statementType="CALLABLE">
+        call execute_seckill(
+            #{seckillId,jdbcType=BIGINT,mode=IN},
+            #{phone,jdbcType=BIGINT,mode=IN},
+            #{killTime,jdbcType=TIMESTAMP,mode=IN},
+            #{result,jdbcType=INTEGER,mode=OUT}
+            );
     </select>
 </mapper>

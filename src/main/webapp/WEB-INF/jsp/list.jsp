@@ -19,9 +19,11 @@
 <%-- 页面显示部分 --%>
 <div class="container">
     <div class="panel panel-default">
+
         <div class="panel-heading text-center">
             <h2>秒杀列表</h2>
         </div>
+
         <div class="panel-body">
             <table class="table table-hover">
                 <thead>
@@ -35,7 +37,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                <c:forEach var="sk" items="${list}">
+                <c:forEach var="sk" items="${pageInfo.list}">
                     <tr>
                         <td>${sk.name}</td>
                         <td>${sk.number}</td>
@@ -54,6 +56,20 @@
                     </tr>
                 </c:forEach>
                 </tbody>
+                <tr style="text-align: center">
+                    <td colspan="5">
+                        <a href="/seckill/list?curPage=${pageInfo.firstPage}">首页</a>
+                        <c:if test="${pageInfo.hasPreviousPage}">
+                            <a href="/seckill/list?curPage=${pageInfo.pageNum-1}">上一页</a>
+                        </c:if>
+                        <c:if test="${pageInfo.hasNextPage}">
+                            <a href="/seckill/list?curPage=${pageInfo.pageNum+1}">下一页</a>
+                        </c:if>
+
+                        <a href="/seckill/list?curPage=${pageInfo.lastPage}">尾页</a>
+                        当前${pageInfo.pageNum}页/共${pageInfo.pages}页/共${pageInfo.total}条记录
+                    </td>
+                </tr>
             </table>
         </div>
     </div>

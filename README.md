@@ -2815,3 +2815,94 @@ select @r_result;
 > > testplan/result/result.txt 为测试结果文件路径
 > > testplan/webreport 为web报告保存路径。
 > > ```
+
+# 优化列表页---使用分页展示商品
+> 通过mybatis的`分页插件pagehelp进行分页查询` 
+
+> pom.xml中引入依赖
+```xml
+<dependency>
+      <groupId>com.github.pagehelper</groupId>
+      <artifactId>pagehelper</artifactId>
+      <version>5.1.2-beta</version>
+    </dependency>
+```
+> mybatis-config.xml中引入pageHelper插件
+```xml
+ <plugins>
+        <plugin interceptor="com.github.pagehelper.PageInterceptor">
+            <!--reasonable：分页合理化参数，默认值为false。
+                当该参数设置为 true 时，pageNum<=0 时会查询第一页，
+                pageNum>pages（超过总数时），会查询最后一页。
+                默认false 时，直接根据参数进行查询。-->
+            <property name="reasonable" value="true"/>
+        </plugin>
+    </plugins>
+```
+
+> 修改 SeckillDao.java 的查询秒杀产品列表方法
+```java
+List<Seckill> getAllSeckill();
+```
+
+> 在SeckillDao.xml实现SeckillDao接口的方法
+```java
+<select id="getAllSeckill" resultType="com.plm.entity.Seckill">
+        select * from seckill
+    </select>
+```
+`切记，sql语句末尾不要添加分号(;)，因为 PageHelper 分页的原理是
+PageHelper首先将前端传递的参数pageon、pageSize保存到page这个对象中，
+接着将page的副本存放入ThreadLoacl中，这样可以保证分页的时候，参数互不影响，
+接着利用了mybatis提供的拦截器interceptor，取得ThreadLocal的值，、
+先执行 select count(0) from seckill 获取所有的条数，再在自定义的
+select * from seckill  sql语句上根据从ThreadLocal获取的page对象，
+重新拼装分页sql，select * from seckill limit ?，从而完成分页。
+
+所以自定义的 select * from seckill 不能添加 ";"，否则，
+重新拼接的 sql语句 会报错。
+`
+
+> 实现实现SeckillService接口，SeckillServiceImpl.java使用 seckillDao对象调用getAllSeckill()方法
+```java
+    @Override
+    public List<Seckill> getSeckillList() {
+        return seckillDao.getAllSeckill();
+    }
+```
+
+> 实现web层的方法，SeckillController.java
+```java
+    @RequestMapping(value = "/list", method = RequestMethod.GET)
+    public String list(Model model,@RequestParam(defaultValue = "1",required = true,value = "curPage") Integer curPage) {
+        Integer pageSize = 2;
+        //分页查询
+        PageHelper.startPage(curPage,pageSize);
+        //获取所有 seckill 信息
+        List<Seckill> seckills = seckillService.getSeckillList();
+        PageInfo<Seckill> pageInfo = new PageInfo<>(seckills);
+        model.addAttribute("pageInfo",pageInfo);
+        //  /WEB-INF/jsp/list.jsp
+        return "list";
+    }
+```
+
+> list.jsp添加分页栏
+```jsp
+<tr style="text-align: center">
+    <td colspan="5">
+        <a href="/seckill/list?curPage=${pageInfo.firstPage}">首页</a>
+        <c:if test="${pageInfo.hasPreviousPage}">
+            <a href="/seckill/list?curPage=${pageInfo.pageNum-1}">上一页</a>
+        </c:if>
+        <c:if test="${pageInfo.hasNextPage}">
+            <a href="/seckill/list?curPage=${pageInfo.pageNum+1}">下一页</a>
+        </c:if>
+
+        <a href="/seckill/list?curPage=${pageInfo.lastPage}">尾页</a>
+        当前${pageInfo.pageNum}页/共${pageInfo.pages}页/共${pageInfo.total}条记录
+    </td>
+</tr>           
+```
+
+>  启动tomcat，浏览器输入http://localhost:8080/seckill/list 查看列表页分页功能是否正常

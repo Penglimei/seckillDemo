@@ -41,8 +41,7 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Override
     public List<Seckill> getSeckillList() {
-        List<Seckill> seckills = seckillDao.findAll(0, 4);
-        return seckills;
+        return seckillDao.getAllSeckill();
     }
 
     @Override
