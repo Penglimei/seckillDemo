@@ -2904,5 +2904,5 @@ select * from seckill  sql语句上根据从ThreadLocal获取的page对象，
     </td>
 </tr>           
 ```
-
+> https://www.cnblogs.com/smfx1314/p/8920278.html
 >  启动tomcat，浏览器输入http://localhost:8080/seckill/list 查看列表页分页功能是否正常
